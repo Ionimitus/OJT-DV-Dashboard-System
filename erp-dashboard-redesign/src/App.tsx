@@ -1,7 +1,10 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Outlet, useNavigate, useParams, useMatch, useLocation, Navigate } from "react-router";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Pie, PieChart, Sector } from "recharts";
+import type { PieSectorShapeProps } from "recharts/types/polar/Pie";
 import { useTheme } from "./theme";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "./components/ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "./components/ui/chart";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function excelDate(serial: number): Date {
@@ -259,18 +262,20 @@ const Ic = {
 
 // ── Report pages nav ──────────────────────────────────────────────────────────
 const REPORT_PAGES = [
-  { id: "report-exposure", label: "Payment Exposure",     path: "/reports/exposure"  },
+  { id: "report-exposure", label: "Accounts Payable",    path: "/reports/exposure"  },
   { id: "report-overdue",  label: "Overdue Vouchers",     path: "/reports/overdue"   },
   { id: "report-by-area",  label: "Unpaid by Trade Area", path: "/reports/by-area"   },
   { id: "report-register", label: "Payment Register",     path: "/reports/register"  },
 ] as const;
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-function Sidebar() {
+function Sidebar({ pinned = false }: { pinned?: boolean }) {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { mode, setMode } = useTheme();
   const [vOpen, setVOpen] = useState(true);
+  const [hovered, setHovered] = useState(false);
+  const expanded = pinned || hovered;
 
   const onDashboard = !!useMatch("/dashboard");
   const onVouchers  = location.pathname.startsWith("/vouchers");
@@ -280,7 +285,7 @@ function Sidebar() {
   const [rOpen, setROpen] = useState(onReports);
 
   const navCls = (active: boolean) =>
-    `relative w-full flex items-center justify-center group-hover/nav:justify-start gap-2.5 px-0 group-hover/nav:px-3 py-2 rounded-xl text-sm text-left transition-colors duration-150 select-none ${
+    `relative w-full flex items-center ${expanded ? "justify-start px-3" : "justify-center px-0"} gap-2.5 py-2 rounded-xl text-sm text-left transition-colors duration-150 select-none ${
       active
         ? "bg-white/15 text-white font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]"
         : "text-[#dbeafe] hover:text-white hover:bg-white/10"
@@ -301,15 +306,17 @@ function Sidebar() {
     { area: "TEST2",   label: "Test2",   muted: true  },
   ];
 
-  const labelCls = "hidden min-w-0 truncate group-hover/nav:block";
+  const labelCls = `${expanded ? "block" : "hidden"} min-w-0 truncate`;
   const navIcon  = "flex-shrink-0 flex items-center justify-center w-5 h-5 opacity-90 [&_svg]:w-[18px] [&_svg]:h-[18px]";
-  const chev     = "hidden flex-shrink-0 group-hover/nav:block";
+  const chev     = `${expanded ? "block" : "hidden"} flex-shrink-0`;
 
   return (
     <aside
-      className="group/nav fixed top-3 left-3 bottom-3 z-30 flex w-16 hover:w-60 flex-col overflow-hidden rounded-2xl transition-[width] duration-300 ease-out"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`fixed top-3 left-3 bottom-3 z-30 flex flex-col overflow-hidden rounded-2xl transition-[width] duration-300 ease-out ${expanded ? "w-60" : "w-16"}`}
       style={{
-        background: "linear-gradient(180deg, rgba(21,45,74,0.96) 0%, rgba(15,33,58,0.98) 100%)",
+        background: "linear-gradient(180deg, rgba(21,45,74,0.70) 0%, rgba(15,33,58,0.76) 100%)",
         backdropFilter: "blur(22px) saturate(180%)",
         WebkitBackdropFilter: "blur(22px) saturate(180%)",
         border: "1px solid rgba(255,255,255,0.10)",
@@ -317,7 +324,7 @@ function Sidebar() {
       }}
     >
       {/* Logo — symbol only until hover */}
-      <div className="flex items-center justify-center gap-2.5 px-3 pt-5 pb-4 group-hover/nav:justify-start">
+      <div className={`flex items-center gap-2.5 px-3 pt-5 pb-4 ${expanded ? "justify-start" : "justify-center"}`}>
         <button
           onClick={() => navigate("/dashboard")}
           title="DV Monitor"
@@ -325,7 +332,7 @@ function Sidebar() {
         >
           <span className="text-white text-[11px] font-bold tracking-tight">DV</span>
         </button>
-        <div className="hidden min-w-0 leading-tight group-hover/nav:block">
+        <div className={`${expanded ? "block" : "hidden"} min-w-0 leading-tight`}>
           <p className="text-[9px] font-semibold text-blue-200/90 tracking-[0.18em] uppercase mb-0.5">TESDA</p>
           <p className="text-[13px] font-semibold text-white truncate">DV Monitor</p>
         </div>
@@ -347,11 +354,11 @@ function Sidebar() {
             className={navCls(onVouchers)}
           >
             <span className={navIcon}><Ic.Vouchers /></span>
-            <span className="hidden min-w-0 flex-1 truncate group-hover/nav:block">Vouchers</span>
+            <span className={`${expanded ? "block" : "hidden"} min-w-0 flex-1 truncate`}>Vouchers</span>
             <span className={chev}><Ic.ChevRight open={vOpen} /></span>
           </button>
           {vOpen && (
-            <div className="mt-0.5 hidden space-y-0.5 group-hover/nav:block">
+            <div className={`mt-0.5 space-y-0.5 ${expanded ? "block" : "hidden"}`}>
               {VOUCHER_AREAS.map(({ area, label, muted }) => {
                 const path = area === "ALL" ? "/vouchers" : `/vouchers?area=${area}`;
                 const active = onVouchers && (
@@ -378,11 +385,11 @@ function Sidebar() {
             className={navCls(onReports)}
           >
             <span className={navIcon}><Ic.Reports /></span>
-            <span className="hidden min-w-0 flex-1 truncate group-hover/nav:block">Reports</span>
+            <span className={`${expanded ? "block" : "hidden"} min-w-0 flex-1 truncate`}>Reports</span>
             <span className={chev}><Ic.ChevRight open={rOpen} /></span>
           </button>
           {rOpen && (
-            <div className="mt-0.5 hidden space-y-0.5 group-hover/nav:block">
+            <div className={`mt-0.5 space-y-0.5 ${expanded ? "block" : "hidden"}`}>
               {REPORT_PAGES.map(r => {
                 const active = location.pathname === r.path;
                 return (
@@ -418,7 +425,7 @@ function Sidebar() {
             {mode === "dark" ? <Ic.Moon /> : mode === "system" ? <Ic.Monitor /> : <Ic.Sun />}
           </span>
           <span className={labelCls}>Theme: {mode.charAt(0).toUpperCase() + mode.slice(1)}</span>
-          <span className="hidden w-1 h-1 rounded-full bg-white/40 group-hover/nav:block ml-auto flex-shrink-0" />
+          <span className={`${expanded ? "block" : "hidden"} w-1 h-1 rounded-full bg-white/40 ml-auto flex-shrink-0`} />
         </button>
       </div>
     </aside>
@@ -605,10 +612,11 @@ export function VoucherDetailPage() {
 }
 
 // ── ChartTooltip ──────────────────────────────────────────────────────────────
-function ChartTip({ active, payload, label }: {
+function ChartTip({ active, payload, label, format }: {
   active?: boolean;
   payload?: { value: number; name?: string; fill?: string }[];
   label?: string;
+  format?: (v: number) => string;
 }) {
   if (!active || !payload?.length) return null;
   return (
@@ -616,11 +624,40 @@ function ChartTip({ active, payload, label }: {
       {label && <p className="text-slate-400 dark:text-slate-500 mb-1">{label}</p>}
       {payload.map((p, i) => (
         <p key={i} className="font-medium font-mono" style={{ color: p.fill ?? "#1e3a5f" }}>
-          {p.name ? `${p.name}: ` : ""}{fmtAmt(p.value)}
+          {p.name ? `${p.name}: ` : ""}{format ? format(p.value) : fmtAmt(p.value)}
         </p>
       ))}
     </div>
   );
+}
+
+// ── Donut chart configs (shadcn chart) ─────────────────────────────────────────
+const AP_CHART_CONFIG = {
+  count: { label: "Vouchers" },
+  paid:    { label: "Paid",     color: "#10b981" },
+  dueSoon: { label: "Due soon", color: "#f59e0b" },
+  overdue: { label: "Overdue",  color: "#ef4444" },
+} satisfies ChartConfig;
+const apCfgLookup = AP_CHART_CONFIG as Record<string, { label?: React.ReactNode; color?: string }>;
+
+const AREA_CHART_CONFIG = {
+  amount: { label: "Amount" },
+  ADMIN:   { label: "Admin",   color: "#2563eb" },
+  CANTEEN: { label: "Canteen", color: "#10b981" },
+  DHT:     { label: "Dht",     color: "#f59e0b" },
+  ST:      { label: "St",      color: "#8b5cf6" },
+  DTEST:   { label: "Dtest",   color: "#06b6d4" },
+  TEST2:   { label: "Test2",   color: "#f43f5e" },
+} satisfies ChartConfig;
+const areaCfgLookup = AREA_CHART_CONFIG as Record<string, { label?: React.ReactNode; color?: string }>;
+
+function activeDonutSector(activeIndex: number) {
+  return ({ index, outerRadius = 0, ...props }: PieSectorShapeProps) =>
+    index === activeIndex ? (
+      <Sector {...props} outerRadius={outerRadius + 8} />
+    ) : (
+      <Sector {...props} outerRadius={outerRadius} />
+    );
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -650,35 +687,43 @@ export function DashboardPage() {
   const unpaid    = filtered.filter(v => v.status !== "PAID");
   const overdueV  = unpaid.filter(v => v.status === "OVERDUE");
   const dueSoonV  = unpaid.filter(v => v.status !== "OVERDUE" && v.due >= REF_TODAY && v.due <= in7);
-  const dueLaterV = unpaid.filter(v => v.status !== "OVERDUE" && v.due > in7);
-
-  const overdueAmt  = overdueV.reduce((s, v)  => s + v.amount, 0);
+  const dueLaterV  = unpaid.filter(v => v.status !== "OVERDUE" && v.due > in7);
   const dueSoonAmt  = dueSoonV.reduce((s, v)  => s + v.amount, 0);
   const dueLaterAmt = dueLaterV.reduce((s, v) => s + v.amount, 0);
+  const overdueAmt  = overdueV.reduce((s, v)  => s + v.amount, 0);
   const totalUnpaid = overdueAmt + dueSoonAmt + dueLaterAmt;
   const totalAmt    = filtered.reduce((s, v) => s + v.amount, 0);
   const paidAmt     = paid.reduce((s, v) => s + v.amount, 0);
   const paidRate    = filtered.length ? Math.round((paid.length / filtered.length) * 100) : 0;
 
-  const bars = [
-    { label: "Overdue",   amt: overdueAmt,  cnt: overdueV.length,  fill: "#ef4444", bg: "bg-red-500",   rows: overdueV  },
-    { label: "Due soon",  amt: dueSoonAmt,  cnt: dueSoonV.length,  fill: "#f59e0b", bg: "bg-amber-400", rows: dueSoonV  },
-    { label: "Due later", amt: dueLaterAmt, cnt: dueLaterV.length, fill: "#93c5fd", bg: "bg-[#93c5fd]", rows: dueLaterV },
-  ];
-
   const areaData = useMemo(() =>
-    ["ADMIN","CANTEEN","DHT","ST","DTEST","TEST2"].map(a => ({
-      name: AREA_LABELS[a],
-      amount: filtered.filter(v => v.tradeArea === a).reduce((s, v) => s + v.amount, 0),
-    })).filter(r => r.amount > 0),
+    ["ADMIN","CANTEEN","DHT","ST","DTEST","TEST2"].map(a => {
+      const rows = filtered.filter(v => v.tradeArea === a);
+      return { code: a, name: AREA_LABELS[a], amount: rows.reduce((s, v) => s + v.amount, 0), count: rows.length };
+    }).filter(r => r.amount > 0).sort((a, b) => b.amount - a.amount),
     [filtered]
   );
 
+  const apSegs = [
+    { name: "paid",     count: paid.length,     fill: "#10b981" },
+    { name: "dueSoon",  count: dueSoonV.length, fill: "#f59e0b" },
+    { name: "overdue",  count: overdueV.length, fill: "#ef4444" },
+  ];
+  const apActive = apSegs.reduce((best, s, i) => (s.count > apSegs[best].count ? i : best), 0);
+
+  const areaDonutData = areaData.map(r => ({
+    code: r.code,
+    amount: r.amount,
+    fill: areaCfgLookup[r.code]?.color ?? "#6366f1",
+  }));
+  const areaActive = areaDonutData.reduce((best, s, i) => (s.amount > areaDonutData[best].amount ? i : best), 0);
+
   const recent = [...filtered].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 10);
 
-  // Outer container fills exactly the padded viewport (py-8 = 32px × 2 = 64px)
+  // Outer container fills exactly the padded viewport on large screens (py-8 = 32px × 2 = 64px);
+  // below 2xl it sizes naturally so nothing gets clipped on smaller windows.
   return (
-    <div className="flex flex-col gap-3" style={{ height: "calc(100vh - 64px)" }}>
+    <div className="flex flex-col gap-3 2xl:h-[calc(100vh-64px)]">
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-shrink-0">
@@ -695,22 +740,12 @@ export function DashboardPage() {
       </div>
 
       {/* ── Accounting KPI strip — fixed-color premium cards ─────────────────── */}
-      <div className="grid grid-cols-4 gap-3 flex-shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-shrink-0">
         {loaded ? [
           {
             label: "Invoices registered", value: String(filtered.length),
             detail: fmtAmt(totalAmt), helper: "Total registered value",
             tile: "from-[#1e3a5f] to-[#16324f]", glow: "rgba(37,99,235,0.35)",
-          },
-          {
-            label: "Outstanding balance", value: fmtAmt(totalUnpaid),
-            detail: `${unpaid.length} invoice${unpaid.length !== 1 ? "s" : ""}`, helper: "Pending + overdue",
-            tile: "from-[#2563eb] to-[#1d4ed8]", glow: "rgba(37,99,235,0.45)",
-          },
-          {
-            label: "Overdue", value: fmtAmt(overdueAmt),
-            detail: `${overdueV.length} invoice${overdueV.length !== 1 ? "s" : ""}`, helper: "Requires follow-up",
-            tile: "from-[#ef4444] to-[#dc2626]", glow: "rgba(239,68,68,0.4)",
           },
           {
             label: "Paid", value: fmtAmt(paidAmt),
@@ -720,7 +755,7 @@ export function DashboardPage() {
         ].map(({ label, value, detail, helper, tile, glow }) => (
           <div
             key={label}
-            className={`relative overflow-hidden rounded-xl p-4 text-white bg-gradient-to-br ${tile} shadow-[0_8px_24px_-8px_rgba(0,0,0,0.30)]`}
+            className={`relative overflow-hidden rounded-xl px-6 py-5 text-white bg-gradient-to-br ${tile} shadow-[0_12px_32px_-10px_rgba(0,0,0,0.35)]`}
           >
             {/* Decorative radial glow */}
             <div
@@ -736,17 +771,17 @@ export function DashboardPage() {
               }}
             />
             <div className="relative">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-white/80">{label}</p>
-              <p className="mt-1.5 text-xl font-semibold leading-tight tabular-nums text-white drop-shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/80">{label}</p>
+              <p className="mt-2 text-3xl font-semibold leading-tight tabular-nums text-white drop-shadow-sm">
                 {value}
               </p>
-              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/15 pt-2.5">
+              <div className="mt-5 flex items-center justify-between gap-2 border-t border-white/15 pt-4">
                 <span className="text-xs font-medium text-white/90 tabular-nums">{detail}</span>
                 <span className="text-[10px] text-white/60 whitespace-nowrap">{helper}</span>
               </div>
             </div>
           </div>
-        )) : Array.from({ length: 4 }).map((_, i) => (
+        )) : Array.from({ length: 2 }).map((_, i) => (
           <div key={i} className={`${card} px-4 py-3`}>
             <Skeleton className="h-3 w-28" />
             <Skeleton className="mt-2 h-6 w-32" />
@@ -755,73 +790,11 @@ export function DashboardPage() {
         ))}
       </div>
 
-      {/* ── Main 2 × 2 grid — fills remaining height ─────────────────────────── */}
-      <div
-        className="grid gap-3 flex-1 min-h-0"
-        style={{ gridTemplateColumns: "3fr 2fr", gridTemplateRows: "1fr 1fr" }}
-      >
+      {/* ── Main grid — 2 × 2 on large screens, single column below 2xl ────── */}
+      <div className="grid gap-3 flex-1 min-h-0 grid-cols-1 2xl:grid-cols-5 2xl:[grid-template-rows:1fr_1fr]">
 
-        {/* Payment Exposure — top left */}
-        <div className={`${card} flex flex-col min-h-0`}>
-          <div className="flex items-baseline justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-            <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 tracking-tight">Payment Exposure</h2>
-            <span className="text-xs text-slate-400 dark:text-slate-400 font-mono tabular-nums">{fmtAmt(totalUnpaid)} total unpaid</span>
-          </div>
-          <div className="flex-1 min-h-0 flex flex-col justify-between px-4 py-4">
-            {loaded ? (
-              <>
-                <div className="space-y-3.5">
-                  {bars.map(row => (
-                    <div key={row.label}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                          <span className={`w-2 h-2 rounded-sm flex-shrink-0 ${row.bg}`} />
-                          {row.label}
-                          <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums font-mono">
-                            {row.cnt} voucher{row.cnt !== 1 ? "s" : ""}
-                          </span>
-                        </span>
-                        <span className="text-sm font-semibold font-mono tabular-nums text-slate-900 dark:text-slate-100">{fmtAmt(row.amt)}</span>
-                      </div>
-                      <div className="h-6 rounded bg-slate-100 dark:bg-slate-700/50 overflow-hidden">
-                        <div
-                          className="h-full rounded transition-[width] duration-700 ease-out"
-                          style={{
-                            width: `${totalUnpaid ? Math.max((row.amt / totalUnpaid) * 100, row.amt > 0 ? 1.5 : 0) : 0}%`,
-                            background: row.fill,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <p className="text-xs text-slate-400 dark:text-slate-500">Due soon: {fmtDateShort(REF_TODAY)} – {fmtDateShort(in7)}</p>
-                  <button
-                    onClick={() => navigate("/reports/exposure")}
-                    className="text-xs font-medium text-[#1d4ed8] dark:text-blue-400 hover:underline"
-                  >
-                    Full exposure report →
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-3.5">
-                {bars.map(row => (
-                  <div key={row.label}>
-                    <div className="flex justify-between mb-1.5">
-                      <Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-20" />
-                    </div>
-                    <Skeleton className="h-6 rounded" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Due Soon — top right */}
-        <div className={`${card} flex flex-col min-h-0`}>
+        {/* Due Soon — top left hero */}
+        <div className={`${card} flex flex-col min-h-0 2xl:col-span-3`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
             <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 tracking-tight">Due Soon</h2>
             <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30">
@@ -867,59 +840,78 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Amount by Trade Area — bottom left */}
-        <div className={`${card} flex flex-col min-h-0`}>
-          <div className="flex items-baseline justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-            <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 tracking-tight">Amount by trade area</h2>
-            <span className="text-xs text-slate-400 dark:text-slate-500">{areaData.length} areas</span>
-          </div>
-          <div className="flex-1 min-h-0 p-3 dark:[&_.recharts-text]:fill-slate-400">
+        {/* Accounts Payable — top right mini (shadcn donut) */}
+        <Card size="sm" className="bg-white dark:bg-[#111a2c] text-slate-900 dark:text-slate-100 flex flex-col min-h-0 2xl:col-span-2 shadow-[0_1px_2px_rgba(15,39,68,0.04),0_8px_24px_-12px_rgba(15,39,68,0.10)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.3),0_8px_24px_-12px_rgba(0,0,0,0.5)]">
+          <CardHeader>
+            <CardTitle className="flex items-baseline justify-between gap-2 w-full">
+              <span>Accounts Payable</span>
+              <span className="text-xs font-mono tabular-nums text-slate-400 dark:text-slate-400 font-normal">{fmtAmt(totalUnpaid)} total unpaid</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 justify-center">
             {loaded ? (
-              areaData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={areaData} layout="vertical" barCategoryGap="30%"
-                    margin={{ top: 4, right: 72, left: 4, bottom: 4 }}>
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: 10, fill: "#94a3b8", fontFamily: "JetBrains Mono, monospace" }}
-                      axisLine={false} tickLine={false}
-                      tickFormatter={v => `₱${Math.round(v / 1000)}k`}
-                    />
-                    <YAxis
-                      type="category" dataKey="name" width={52}
-                      tick={{ fontSize: 12, fill: "#64748b" }}
-                      axisLine={false} tickLine={false}
-                    />
-                    <Tooltip content={<ChartTip />} cursor={{ fill: "rgba(0,0,0,0.03)" }} />
-                    <Bar dataKey="amount" fill="#1e3a5f" radius={[0, 3, 3, 0]}
-                      label={{ position: "right", formatter: (v: unknown) => `₱${Math.round((v as number)/1000)}k`, fontSize: 10, fill: "#94a3b8", fontFamily: "JetBrains Mono, monospace" }} />
-                  </BarChart>
-                </ResponsiveContainer>
+<ChartContainer
+                  config={AP_CHART_CONFIG}
+                  className="mx-auto h-[220px] w-full max-w-[260px]"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                  <ChartTooltip
+                    cursor={false}
+                    content={
+                      <ChartTooltipContent
+                        hideLabel
+                        formatter={(value, name) => (
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="h-2 w-2 rounded-full shrink-0"
+                              style={{ background: apCfgLookup[name as string]?.color }}
+                            />
+                            <span className="text-muted-foreground">{apCfgLookup[name as string]?.label}</span>
+                            <span className="ml-auto pl-1 font-mono font-medium tabular-nums">
+                              {value} {value !== 1 ? "vouchers" : "voucher"}
+                            </span>
+                          </div>
+                        )}
+                      />
+                    }
+                  />
+                  <Pie
+                    data={apSegs}
+                    dataKey="count"
+                    nameKey="name"
+                    innerRadius={58}
+                    outerRadius={90}
+                    strokeWidth={5}
+                    shape={activeDonutSector(apActive)}
+                  />
+                </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
               ) : (
-                <EmptyState title="No data" description="No vouchers in the selected period." />
-              )
-            ) : (
-              <div className="space-y-2.5 p-1">
-                {[90,70,52,38].map((w, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <Skeleton className="h-3.5 w-10 flex-shrink-0" />
-                    <Skeleton className="h-5 rounded" style={{ width: `${w}%` }} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                <Skeleton className="mx-auto w-40 h-40 rounded-full" />
+              )}
+          </CardContent>
+          <CardFooter className="justify-between gap-2">
+            <p className="text-xs text-slate-400 dark:text-slate-500">Next 7 days count as due soon</p>
+            <button
+              onClick={() => navigate("/reports/exposure")}
+              className="text-xs font-medium text-[#1d4ed8] dark:text-blue-400 hover:underline whitespace-nowrap"
+            >
+              Full exposure report →
+            </button>
+          </CardFooter>
+        </Card>
 
-        {/* Recent Vouchers — bottom right */}
-        <div className={`${card} flex flex-col min-h-0`}>
+        {/* Recent Vouchers — bottom left hero */}
+        <div className={`${card} flex flex-col min-h-0 2xl:col-span-3`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
             <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 tracking-tight">Recent vouchers</h2>
             <button onClick={() => navigate("/vouchers")} className="text-xs font-medium text-[#1d4ed8] dark:text-blue-400 hover:underline">
               View all
             </button>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
             {loaded ? (
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 bg-white dark:bg-[#111a2c] z-10 border-b border-slate-100 dark:border-slate-800">
@@ -967,6 +959,70 @@ export function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Amount by Trade Area — bottom right mini (shadcn donut) */}
+        <Card size="sm" className="bg-white dark:bg-[#111a2c] text-slate-900 dark:text-slate-100 flex flex-col min-h-0 2xl:col-span-2 shadow-[0_1px_2px_rgba(15,39,68,0.04),0_8px_24px_-12px_rgba(15,39,68,0.10)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.3),0_8px_24px_-12px_rgba(0,0,0,0.5)]">
+          <CardHeader>
+            <CardTitle className="flex items-baseline justify-between gap-2 w-full">
+              <span>Amount by trade area</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">{areaData.length} areas</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 justify-center">
+            {loaded ? (
+              areaData.length > 0 ? (
+                <ChartContainer
+                  config={AREA_CHART_CONFIG}
+                  className="mx-auto h-[220px] w-full max-w-[260px]"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                    <ChartTooltip
+                      cursor={false}
+                      content={
+                        <ChartTooltipContent
+                          hideLabel
+                          formatter={(value, name) => (
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="h-2 w-2 rounded-full shrink-0"
+style={{ background: areaCfgLookup[name as string]?.color }}
+                            />
+                            <span className="text-muted-foreground">{areaCfgLookup[name as string]?.label}</span>
+                              <span className="ml-auto pl-1 font-mono font-medium tabular-nums">{fmtAmt(value as number)}</span>
+                            </div>
+                          )}
+                        />
+                      }
+                    />
+                    <Pie
+                      data={areaDonutData}
+                      dataKey="amount"
+                      nameKey="code"
+                      innerRadius={58}
+                      outerRadius={90}
+                      strokeWidth={5}
+                      shape={activeDonutSector(areaActive)}
+                    />
+                  </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              ) : (
+                <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">No vouchers in the selected period.</p>
+              )
+            ) : (
+              <Skeleton className="mx-auto w-40 h-40 rounded-full" />
+            )}
+          </CardContent>
+          <CardFooter>
+            <button
+              onClick={() => navigate("/reports/by-area")}
+              className="text-xs font-medium text-[#1d4ed8] dark:text-blue-400 hover:underline"
+            >
+              View full report →
+            </button>
+          </CardFooter>
+        </Card>
 
       </div>
 
@@ -1286,7 +1342,7 @@ export function VouchersPage() {
                   <th
                     key={c.key}
                     onClick={() => handleSort(c.key)}
-                    className={`px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-100 whitespace-nowrap transition-colors bg-[#f8fafc] dark:bg-[#0f172a] ${c.right ? "text-right" : ""}`}
+                    className={`px-3 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-100 whitespace-nowrap transition-colors bg-[#f8fafc] dark:bg-[#0f172a] ${c.right ? "text-right" : ""}`}
                   >
                     <span className={`inline-flex items-center gap-1 ${c.right ? "flex-row-reverse" : ""}`}>
                       {c.label}
@@ -1303,7 +1359,7 @@ export function VouchersPage() {
                   <tr key={i} className={`border-b border-slate-100 dark:border-slate-800 ${i % 2 === 1 ? "bg-slate-50/40 dark:bg-slate-800/20" : ""}`}>
                     <td className="pl-3 pr-1 py-2.5"><Skeleton className="w-2 h-2 rounded-full" /></td>
                     {[88, 60, 68, 80, 130, 44, 70, 52].map((w, j) => (
-                      <td key={j} className="px-3 py-2.5">
+                      <td key={j} className="px-3 py-3.5">
                         <Skeleton className="h-3 rounded" style={{ width: `${w}px` }} />
                       </td>
                     ))}
@@ -1330,22 +1386,22 @@ export function VouchersPage() {
                       className={`border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors duration-75 hover:bg-[#f5f8fd] dark:hover:bg-slate-700/30 ${idx % 2 === 1 ? "bg-slate-50/40 dark:bg-slate-800/20" : "bg-white dark:bg-transparent"}`}
                     >
                       {/* Status dot */}
-                      <td className="pl-3 pr-1 py-2.5">
+<td className="pl-3 pr-1 py-3.5">
                         <span className={`w-2 h-2 rounded-full block flex-shrink-0 ${DOT_CLS[v.status]}`} />
                       </td>
 
                       {/* DV # */}
-                      <td className="px-3 py-2.5 font-mono font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                      <td className="px-3 py-3.5 font-mono font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
                         {v.id}
                       </td>
 
                       {/* DV Date */}
-                      <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums font-mono">
+                      <td className="px-3 py-3.5 text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums font-mono">
                         {fmtDateShort(v.dvDate)}
                       </td>
 
                       {/* Due Date */}
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-3.5">
                         <p className={`whitespace-nowrap tabular-nums font-mono leading-tight ${isPastDue ? "text-red-600 dark:text-red-400 font-medium" : "text-slate-500 dark:text-slate-400"}`}>
                           {fmtDateShort(v.due)}
                         </p>
@@ -1355,27 +1411,27 @@ export function VouchersPage() {
                       </td>
 
                       {/* Payee */}
-                      <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200 font-medium whitespace-nowrap max-w-[110px] truncate">
+                      <td className="px-3 py-3.5 text-slate-800 dark:text-slate-200 font-medium whitespace-nowrap max-w-[110px] truncate">
                         {v.payee}
                       </td>
 
                       {/* Particulars — truncates */}
-                      <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400 max-w-[180px] truncate">
+                      <td className="px-3 py-3.5 text-slate-500 dark:text-slate-400 max-w-[180px] truncate">
                         {v.particulars}
                       </td>
 
                       {/* Area */}
-                      <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      <td className="px-3 py-3.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {AREA_LABELS[v.tradeArea] ?? v.tradeArea}
                       </td>
 
                       {/* Amount */}
-                      <td className="px-3 py-2.5 text-right font-mono font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap tabular-nums">
+                      <td className="px-3 py-3.5 text-right font-mono font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap tabular-nums">
                         {fmtAmt(v.amount)}
                       </td>
 
                       {/* Status */}
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-3.5">
                         <StatusChip status={v.status} />
                       </td>
                     </tr>
@@ -1692,7 +1748,7 @@ function ReportToolbar({ title, subtitle, rows, reportLabel, dateRange, setDateR
   );
 }
 
-// ── 1. Payment Exposure ───────────────────────────────────────────────────────
+// ── 1. Accounts Payable ───────────────────────────────────────────────────────
 export function PaymentExposurePage() {
   const f = useReportFilters();
   const [detail, setDetail] = useState<Voucher | null>(null);
@@ -1720,11 +1776,11 @@ export function PaymentExposurePage() {
 
   return (
     <div className="space-y-5">
-      <ReportToolbar title="Payment Exposure" subtitle={subtitle} rows={tableRows} reportLabel="Payment Exposure"
+      <ReportToolbar title="Accounts Payable" subtitle={subtitle} rows={tableRows} reportLabel="Accounts Payable"
         dateRange={f.dateRange} setDateRange={f.setDateRange} area={f.area} setArea={f.setArea}
         status={f.status} setStatus={f.setStatus} showStatus={false} reset={f.reset} isDirty={f.isDirty} />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatTile label="Total unpaid" value={fmtAmt(buckets.reduce((s,b)=>s+b.amount,0))} sub={`${unpaid.length} vouchers`} />
         <StatTile label="Overdue"
           value={fmtAmt(buckets[0].amount)}
@@ -1796,7 +1852,7 @@ export function OverdueVouchersPage() {
         dateRange={f.dateRange} setDateRange={f.setDateRange} area={f.area} setArea={f.setArea}
         status={f.status} setStatus={f.setStatus} showStatus={false} reset={f.reset} isDirty={f.isDirty} />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatTile label="Total overdue" value={fmtAmt(totalAmt)}
           sub={`${tableRows.length} voucher${tableRows.length!==1?"s":""}`} accent="text-red-600 dark:text-red-400" />
         <StatTile label="Count" value={tableRows.length} sub="Requiring action" />
@@ -1849,7 +1905,7 @@ export function UnpaidByAreaPage() {
         dateRange={f.dateRange} setDateRange={f.setDateRange} area={f.area} setArea={f.setArea}
         status={f.status} setStatus={f.setStatus} showStatus={false} reset={f.reset} isDirty={f.isDirty} />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatTile label="Total unpaid" value={fmtAmt(totalAmt)} sub={`${unpaid.length} vouchers`} />
         <StatTile label="Areas with unpaid" value={areaBarData.length} sub="of 6 areas" />
         <StatTile label="Largest exposure"
@@ -1909,7 +1965,7 @@ export function PaymentRegisterPage() {
         dateRange={f.dateRange} setDateRange={f.setDateRange} area={f.area} setArea={f.setArea}
         status={f.status} setStatus={f.setStatus} showStatus reset={f.reset} isDirty={f.isDirty} />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatTile label="Total registered" value={fmtAmt(totalAmt)} sub={`${f.base.length} vouchers`} />
         <StatTile label="Paid" value={fmtAmt(paidAmt)}
           sub={`${f.base.filter(v=>v.status==="PAID").length} vouchers`} accent="text-emerald-700 dark:text-emerald-400" />
@@ -2017,7 +2073,7 @@ export function TradeAreasPage() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-3">
         <StatTile label="Trade areas" value={areaStats.length} sub="Grouped below" />
         <StatTile label="Vouchers"     value={RAW.length}      sub="In the register" />
         <StatTile label="Total registered" value={fmtAmt(totalAmount)} sub="Across all areas" accent="text-[#1e3a5f] dark:text-blue-300" />
@@ -2034,7 +2090,7 @@ export function TradeAreasPage() {
             Click a card to filter the detail table
           </span>
         </div>
-        <div className="p-4 grid grid-cols-3 gap-3">
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-3">
           {areaStats.map(a => {
             const active = areaFilter === a.label;
             const dot = AREA_OPTIONS.find(o => o.label === a.label)?.dot ?? "bg-slate-400";
@@ -2104,6 +2160,7 @@ export function TradeAreasPage() {
             {rows.length} of {RAW.length} records
           </span>
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30">
@@ -2144,6 +2201,7 @@ export function TradeAreasPage() {
             </tfoot>
           )}
         </table>
+        </div>
       </div>
     </div>
   );
@@ -2220,11 +2278,16 @@ export function SettingsPage() {
 
 // ── Root layout ───────────────────────────────────────────────────────────────
 export default function Root() {
+  const path = useLocation().pathname;
+  const pinned = path !== "/" && path !== "/dashboard";
+
   return (
     <div className="bg-[#f4f6fb] dark:bg-[#0b1220] dark:text-slate-200 min-h-screen transition-colors" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <Sidebar />
-      <main className="min-h-screen px-8 py-8 pl-[100px]">
-        <Outlet />
+      <Sidebar pinned={pinned} />
+      <main className={`min-h-screen pr-5 2xl:pr-10 py-8 transition-[padding] duration-300 ${pinned ? "pl-[268px]" : "pl-[104px]"}`}>
+        <div className="mx-auto w-full max-w-[1400px]">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
